@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_package = "es.demo.esdemo.proto";
+option java_outer_classname = "FormProto";
+
+message FormCreated {
+  string name = 1;
+  string email = 2;
+}
