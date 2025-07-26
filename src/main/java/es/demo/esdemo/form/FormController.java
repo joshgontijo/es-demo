@@ -24,9 +24,9 @@ class FormController {
     public ResponseEntity<CreateFormResponse> createForm(@RequestBody AddPersonRequest request) {
         var formId = UUID.randomUUID().toString().substring(0, 8);
         var event = new FormEvent.FormCreated(formId, request.name, request.email);
-        var result = store.append(formId, new Event("FORM_CREATED", ), 0);
 
-        log.info("Form created: {}", result);
+//        var result = store.append(formId, new Event("FORM_CREATED", ), 0);
+//        log.info("Form created: {}", result);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
@@ -37,9 +37,8 @@ class FormController {
     @PostMapping("/forms/{formId}/people")
     public ResponseEntity<AddPersonResponse> post(@PathVariable String formId,
                                                   @RequestBody AddPersonRequest request) {
-        var form = store.load(formId, Form.class);
-        form.people.put(request.email, new Form.Person(request.name, request.email));
-        store.append(formId, new FormEvent.PersonAdded(request.name, request.email));
+//        var form = store.load(formId, Form.class);
+//        form.people.put(request.email, new Form.Person(request.name, request.email));
 
         return ResponseEntity.ok(
                 new AddPersonResponse(UUID.randomUUID().toString().substring(0, 8))
@@ -49,12 +48,12 @@ class FormController {
     @DeleteMapping("/forms/{formId}/people/{email}")
     public ResponseEntity<AddPersonResponse> deletePerson(@PathVariable String formId, @PathVariable String email) {
 
-        var form = db.get(formId);
-        if (!form.people.containsKey(email)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-
-        db.append(formId, new FormEvent.PersonRemoved(email), form.version());
+//        var form = db.get(formId);
+//        if (!form.people.containsKey(email)) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+//        }
+//
+//        db.append(formId, new FormEvent.PersonRemoved(email), form.version());
 
         return ResponseEntity.ok(
                 new AddPersonResponse(UUID.randomUUID().toString().substring(0, 8))

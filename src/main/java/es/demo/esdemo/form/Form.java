@@ -1,13 +1,11 @@
 package es.demo.esdemo.form;
 
-import es.demo.esdemo.repo2.AggregateRoot;
-import es.demo.esdemo.repo2.Event;
 import es.demo.esdemo.repository.Aggregate;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Form extends AggregateRoot {
+public class Form extends Aggregate {
 
     private String id;
     private String brand;
@@ -16,11 +14,6 @@ public class Form extends AggregateRoot {
     public final Map<String, Person> people = new HashMap<>();
     private Status status = Status.CREATED;
 
-
-    @Override
-    public void when(Event event) {
-
-    }
 
     public Form(String id, String brand, String email) {
         this.id = id;

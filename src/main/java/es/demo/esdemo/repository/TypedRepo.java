@@ -1,6 +1,8 @@
 package es.demo.esdemo.repository;
 
 import es.demo.esdemo.Json;
+import es.demo.esdemo.repo2.Event;
+import es.demo.esdemo.repo2.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,34 +36,22 @@ public class TypedRepo<T extends Aggregate> {
         this.aggregateType = aggregateType;
     }
 
-    public WriteResult append(String stream, Object event, int expectedVersion) {
-        var className = event.getClass().getSimpleName();
-        var evType = event.getClass().getAnnotation(DomainEvent.class);
+    public long append(String stream, Object data, int expectedVersion) {
+        var className = data.getClass().getSimpleName();
+        var evType = data.getClass().getAnnotation(DomainEvent.class);
         if (evType == null) {
             throw new IllegalArgumentException("Event class " + className + " is not annotated with " + DomainEvent.class.getSimpleName());
         }
         var evTypeName = evType.value() != null && !evType.value().isBlank() ? evType.value() : toSnakeCase(className);
-        return db.append(stream, evTypeName, Json.toJson(event), expectedVersion);
+        var event = new EventRecord()
+                .streamId(stream)
+                .eventType(evTypeName)
+                .data(Json.toJson(expectedVersion));
+
+        return db.append(event, new Version.Expect(expectedVersion));
     }
 
-    public T get(String stream) {
-        return get(stream, 0, Integer.MAX_VALUE);
-    }
 
-    public T get(String stream, int startVersionInclusive, int limit) {
-        var instance = newInstance(aggregateType);
-        for (var event : db.get(stream, startVersionInclusive, limit)) {
-            var handler = handlers.get(event.type());
-            if (handler == null) {
-                log.warn("No handler found for event type '{}' in aggregate {}, skipping", event.type(), aggregateType.getName());
-                continue;
-            }
-            var eventData = Json.fromJson(event.data(), handler.eventType);
-            invoke(instance, handler, eventData);
-            instance.version = event.version();
-        }
-        return instance;
-    }
 
     static class ReflectionMagic {
 

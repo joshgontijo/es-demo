@@ -11,53 +11,79 @@ import java.util.Objects;
 public class EventRecord {
 
     @Id
-    @Column(name = "uuid", nullable = false, updatable = false, unique = true)
-    private String uuid;
-
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "sequence")
     private long sequence;
-    private String stream;
-    private int version;
 
-    @Column(name = "timestamp", insertable = false, updatable = false)
+    @Column(name = "stream_id")
+    private String streamId;
+    private long version;
+
+    @Column(insertable = false, updatable = false)
     private OffsetDateTime timestamp;
 
     @Column(name = "event_type")
-    private String type;
+    private String eventType;
     private byte[] data;
+    private byte[] metadata;
 
 
-    public EventRecord(String uuid, long sequence, String stream, int version, OffsetDateTime timestamp, String type, byte[] data) {
-        this.uuid = uuid;
+    public EventRecord(long sequence, String streamId, long version, OffsetDateTime timestamp, String eventType, byte[] data) {
         this.sequence = sequence;
-        this.stream = stream;
+        this.streamId = streamId;
         this.version = version;
         this.timestamp = timestamp;
-        this.type = type;
+        this.eventType = eventType;
         this.data = data;
     }
 
     public EventRecord() {
     }
 
-    public String getUuid() {
-        return uuid;
+
+    public EventRecord sequence(long sequence) {
+        this.sequence = sequence;
+        return this;
     }
 
-    public void setUuid(String uuid) {
-        this.uuid = uuid;
+    public EventRecord streamId(String streamId) {
+        this.streamId = streamId;
+        return this;
+    }
+
+    public EventRecord version(long version) {
+        this.version = version;
+        return this;
+    }
+
+    public EventRecord timestamp(OffsetDateTime timestamp) {
+        this.timestamp = timestamp;
+        return this;
+    }
+
+    public EventRecord data(byte[] data) {
+        this.data = data;
+        return this;
+    }
+
+    public EventRecord metadata(byte[] metadata) {
+        this.metadata = metadata;
+        return this;
+    }
+
+    public EventRecord eventType(String eventType) {
+        this.eventType = eventType;
+        return this;
     }
 
     public long sequence() {
         return sequence;
     }
 
-    public String stream() {
-        return stream;
+    public String streamId() {
+        return streamId;
     }
 
-    public int version() {
+    public long version() {
         return version;
     }
 
@@ -65,12 +91,16 @@ public class EventRecord {
         return timestamp;
     }
 
-    public String type() {
-        return type;
+    public String eventType() {
+        return eventType;
     }
 
     public byte[] data() {
         return data;
+    }
+
+    public byte[] metadata() {
+        return metadata;
     }
 
     @Override
@@ -80,16 +110,15 @@ public class EventRecord {
         EventRecord that = (EventRecord) obj;
         return sequence == that.sequence &&
                 version == that.version &&
-                Objects.equals(uuid, that.uuid) &&
-                Objects.equals(stream, that.stream) &&
+                Objects.equals(streamId, that.streamId) &&
                 Objects.equals(timestamp, that.timestamp) &&
-                Objects.equals(type, that.type) &&
+                Objects.equals(eventType, that.eventType) &&
                 Arrays.equals(data, that.data);
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(uuid, sequence, stream, version, timestamp, type);
+        int result = Objects.hash(sequence, streamId, version, timestamp, eventType);
         result = 31 * result + Arrays.hashCode(data);
         return result;
     }
@@ -97,13 +126,11 @@ public class EventRecord {
     @Override
     public String toString() {
         return "EventRecord{" +
-                "uuid='" + uuid + '\'' +
                 ", sequence=" + sequence +
-                ", stream='" + stream + '\'' +
+                ", stream='" + streamId + '\'' +
                 ", version=" + version +
                 ", timestamp=" + timestamp +
-                ", type='" + type + '\'' +
-                ", data=" + Arrays.toString(data) +
+                ", type='" + eventType + '\'' +
                 '}';
     }
 

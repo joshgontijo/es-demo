@@ -19,14 +19,11 @@ public class EventStore {
     private static final Logger log = LoggerFactory.getLogger(EventStore.class);
 
     private static final int INITIAL_VERSION = 0;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    public static final String LOAD_EVENTS_QUERY = """
-            SELECT uuid, stream_id, event_type, version, timestamp, data, metadata
-            FROM events e
-            WHERE e.stream_id = :stream_id
-            AND e.version >= :version
-            ORDER BY e.version ASC
-            """;
+    public EventStore(NamedParameterJdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     private static final String SAVE_EVENTS_QUERY = """
             INSERT INTO events
@@ -34,23 +31,10 @@ public class EventStore {
             VALUES
                 (:uuid, :stream_id, :event_type, :version, NOW(), :data, :metadata)
             """;
-
-    private static final String VERSION_QUERY = """
-            SELECT MAX(version)
-            FROM events
-            WHERE stream_id = :stream_id
-            """;
-
-    private final NamedParameterJdbcTemplate jdbcTemplate;
-
-    public EventStore(NamedParameterJdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
-    }
-
-    public long append(String stream, Event event, ExpectedVersion expectedVersion) {
+    public long append(String stream, Event event, Version expectedVersion) {
         var expected = switch (expectedVersion) {
-            case ExpectedVersion.Any any -> version(stream).orElse(INITIAL_VERSION);
-            case ExpectedVersion.Of(long version) -> version;
+            case Version.Any any -> version(stream).orElse(INITIAL_VERSION);
+            case Version.Expect(long version) -> version;
         };
 
         while (true) {
@@ -66,13 +50,21 @@ public class EventStore {
                 //----
                 var currentVersion = version(stream).orElse(INITIAL_VERSION);
                 switch (expectedVersion) {
-                    case ExpectedVersion.Any any -> expected = currentVersion;
-                    case ExpectedVersion.Of(long version) -> throw new VersionMismatch(stream, currentVersion, expected, e);
+                    case Version.Any any -> expected = currentVersion;
+                    case Version.Expect(long version) -> throw new VersionMismatch(stream, currentVersion, expected, e);
                 }
             }
         }
     }
 
+
+    public static final String LOAD_EVENTS_QUERY = """
+            SELECT uuid, stream_id, event_type, version, timestamp, data, metadata
+            FROM events e
+            WHERE e.stream_id = :stream_id
+            AND e.version >= :version
+            ORDER BY e.version ASC
+            """;
     public List<Event> get(String streamId, long startVersion) {
         return jdbcTemplate.query(LOAD_EVENTS_QUERY, Map.of(STREAM_ID, streamId, VERSION, startVersion),
                 (rs, rowNum) -> new Event()
@@ -85,6 +77,35 @@ public class EventStore {
                         .metadata(rs.getBytes(METADATA))
         );
     }
+
+    private static final String VERSION_QUERY = """
+            SELECT MAX(version)
+            FROM events
+            WHERE stream_id = :stream_id
+            """;
+
+    public Optional<Integer> version(String aggregateId) {
+        var version = jdbcTemplate.queryForObject(VERSION_QUERY, Map.of(AGGREGATE_ID, aggregateId), Integer.class);
+        return Optional.ofNullable(version);
+    }
+
+
+    private Map<String, Serializable> mapFromEvent(Event event) {
+        return Map.of(
+                AGGREGATE_ID, event.streamId(),
+                EVENT_TYPE, event.eventType(),
+                DATA, Objects.isNull(event.data()) ? new byte[]{} : event.data(),
+                METADATA, Objects.isNull(event.metadata()) ? new byte[]{} : event.metadata(),
+                VERSION, event.version());
+    }
+
+    private void eventsBatchInsert(List<Event> events) {
+        var args = events.stream().map(this::mapFromEvent).toList();
+        Map<String, ?>[] maps = args.toArray(new Map[0]);
+        int[] ints = jdbcTemplate.batchUpdate(SAVE_EVENTS_QUERY, maps);
+        log.info("(saveEvents) BATCH saved result: {}, event: {}", ints);
+    }
+
 
     public enum Order {
         ASC, DESC
@@ -101,31 +122,6 @@ public class EventStore {
 
     }
 
-    public List<Event> search(String streamId) {
-        return get(streamId, 0);
-    }
-
-    public Optional<Integer> version(String aggregateId) {
-        var version = jdbcTemplate.queryForObject(VERSION_QUERY, Map.of(AGGREGATE_ID, aggregateId), Integer.class);
-        return Optional.ofNullable(version);
-    }
-
-    private Map<String, Serializable> mapFromEvent(Event event) {
-        return Map.of(
-                AGGREGATE_ID, event.streamId(),
-                AGGREGATE_TYPE, event.aggregateType(),
-                EVENT_TYPE, event.eventType(),
-                DATA, Objects.isNull(event.data()) ? new byte[]{} : event.data(),
-                METADATA, Objects.isNull(event.metadata()) ? new byte[]{} : event.metadata(),
-                VERSION, event.version());
-    }
-
-    private void eventsBatchInsert(List<Event> events) {
-        var args = events.stream().map(this::mapFromEvent).toList();
-        Map<String, ?>[] maps = args.toArray(new Map[0]);
-        int[] ints = jdbcTemplate.batchUpdate(SAVE_EVENTS_QUERY, maps);
-        log.info("(saveEvents) BATCH saved result: {}, event: {}", ints);
-    }
 
 
 //    private void handleConcurrency(String streamId) {

@@ -35,7 +35,7 @@ public abstract class AggregateRoot {
 
     public void apply(final Event event) {
         this.validateEvent(event);
-        event.aggregateType(this.type);
+//        event.aggregateType(this.type);
 
         when(event);
         changes.add(event);
@@ -47,7 +47,7 @@ public abstract class AggregateRoot {
     public void raiseEvent(final Event event) {
         this.validateEvent(event);
 
-        event.aggregateType(this.type);
+//        event.aggregateType(this.type);
         when(event);
 
         this.version++;

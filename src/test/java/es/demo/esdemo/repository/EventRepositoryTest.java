@@ -1,21 +1,25 @@
 package es.demo.esdemo.repository;
 
+import es.demo.esdemo.repo2.Version;
+import org.flywaydb.core.Flyway;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
-
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.annotation.DirtiesContext;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicReference;
+
+import static es.demo.esdemo.repository.EventQuery.*;
+import static java.time.OffsetDateTime.now;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.data.jpa.domain.Specification.where;
 
 @SpringBootTest
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
@@ -27,106 +31,84 @@ class EventRepositoryTest {
     @Autowired
     private EventRepository eventstore;
 
+    @Autowired
+    private Flyway flyway;
 
-    //TODO also test with concurrent writes so an actual SQL exception is thrown
-    @Test
-    void multiThreadedAppendDuplicatedTest() {
-        var tasks = new ArrayList<>();
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-
-
-            var error = new AtomicReference<Exception>();
-
-            for (int i = 0; i < 10; i++) {
-                var result = CompletableFuture.runAsync(() -> {
-                    int count = 0;
-                    while (error.get() == null) {
-                        try {
-                            eventstore.append("aaa", TEST_TYPE, bytes(), count);
-                            count++;
-                        } catch (VersionMismatch e) {
-                            //ignore
-                        }
-                        catch (Exception e) {
-                            error.set(e);
-                        }
-                    }
-                });
-                tasks.add(result);
-            }
-        }
-
-        CompletableFuture.allOf(tasks.toArray(CompletableFuture[]::new)).join();
-
-
-//        assertThrows(VersionMismatch.class, () -> {
-//            eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-//            eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-//        });
+    @BeforeEach
+    void setUp() {
+        flyway.clean();
+        flyway.migrate();
     }
 
+    @Test
+    void append() {
+        long version = eventstore.append(event(TEST_STREAM), new Version.Expect(0));
+        assertEquals(1, version);
+    }
 
     @Test
     void appendDuplicate() {
-        var res = eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-        assertEquals(1, res.sequence());
+        var version = eventstore.append(event(TEST_STREAM), new Version.Expect(0));
+        assertEquals(1, version);
 
-        assertThrows(VersionMismatch.class, () -> {
-            eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-        });
-
-    }
-
-    @Test
-    void appendReturnsSequenceNumber() {
-        var result = eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-        assertEquals(1, result.sequence());
-
-        result = eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 1);
-        assertEquals(2, result.sequence());
+        assertThrows(VersionMismatch.class, () -> eventstore.append(event(TEST_STREAM), new Version.Expect(0)));
     }
 
 
     @Test
-    void get() {
+    void query() {
         // Arrange
-        eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-        eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 1);
+        eventstore.append(event(TEST_STREAM), new Version.Any());
+        eventstore.append(event(TEST_STREAM), new Version.Any());
 
         // Act
-        List<EventRecord> events = eventstore.get(TEST_STREAM, 0, 10);
+        var query = where(stream(TEST_STREAM))
+                .and(eventTypes(Set.of(TEST_TYPE)));
+
+        List<EventRecord> events = eventstore.query(query, Sort.by(Sort.Direction.ASC, "sequence"), 10);
 
         // Assert
         assertEquals(2, events.size());
     }
 
     @Test
-    void version() {
+    void fullQuery() {
         // Arrange
-        String streamName = "test-stream";
-        eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 0);
-        eventstore.append(TEST_STREAM, TEST_TYPE, bytes(), 1);
+        eventstore.append(event(TEST_STREAM), new Version.Any());
+        eventstore.append(event(TEST_STREAM), new Version.Any());
 
         // Act
-        Optional<Integer> version = eventstore.version(streamName);
+        var query = where(timestampBetween(now().minus(Duration.ofDays(1)),now()))
+                .and(eventTypes(Set.of(TEST_TYPE)))
+                .and(EventQuery.version(0, 10))
+                .and(stream(TEST_STREAM));
+
+        List<EventRecord> events = eventstore.query(query, Sort.by(Sort.Direction.ASC, "sequence"), 10);
+
+        // Assert
+        assertEquals(2, events.size());
+    }
+
+
+    @Test
+    void version() {
+        // Arrange
+        eventstore.append(event(TEST_STREAM), new Version.Expect(0));
+        eventstore.append(event(TEST_STREAM), new Version.Expect(1));
+
+        // Act
+        Optional<Long> version = eventstore.version(TEST_STREAM);
 
         // Assert
         assertEquals(2, version.orElseThrow());
     }
 
-    @Test
-    void append() {
-        // Arrange
-        String streamName = "test-stream";
-        long version = 1;
-        String type = "type1";
-
-        // Act
-        var result = eventstore.append(streamName, type, bytes(), 0);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(version, result.version());
+    private static EventRecord event(String stream) {
+        return new EventRecord()
+                .streamId(stream)
+                .eventType(TEST_TYPE)
+                .version(0)
+                .data(bytes());
     }
 
     private static byte[] bytes() {
