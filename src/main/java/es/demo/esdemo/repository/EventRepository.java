@@ -1,6 +1,5 @@
 package es.demo.esdemo.repository;
 
-import es.demo.esdemo.repo2.Version;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -15,6 +14,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import static java.util.Objects.requireNonNull;
 
@@ -33,7 +35,8 @@ public interface EventRepository extends JpaRepository<EventRecord, Long>, JpaSp
 
             var expected = switch (expectedVersion) {
                 case Version.Any any -> currentVersion;
-                case Version.Expect(long version) when currentVersion != version -> throw new VersionMismatch(streamId, currentVersion, version);
+                case Version.Expect(long version) when currentVersion != version ->
+                        throw new VersionMismatch(streamId, currentVersion, version);
                 case Version.Expect(long version) -> version;
             };
 
@@ -54,14 +57,35 @@ public interface EventRepository extends JpaRepository<EventRecord, Long>, JpaSp
         }
     }
 
-    //Returns the current version of the stream, or empty if the stream does not exist
     @Query("SELECT MAX(e.version) FROM EventRecord e WHERE e.streamId = ?1")
-    Optional<Long> version(String stream);
+    Optional<Long> version(String streamId);
+
+    //Caller must close the stream and use @Transactional(readOnly = true)
+    @Query("SELECT e FROM EventRecord e WHERE e.streamId = ?1")
+    Stream<EventRecord> get(String streamId);
+
+
+    //------- Helper methods for aggregates and projections -------
+
+    @Transactional(readOnly = true)
+    default <T extends Aggregate> T get(String streamId, Supplier<T> instance, BiConsumer<T, EventRecord> handler) {
+        return this.project(streamId, instance, (aggregate, event) -> {
+            handler.accept(aggregate, event);
+            aggregate.version = event.version();
+        });
+    }
+
+    //TODO: remove in favour of functional approach ?
+    @Transactional(readOnly = true)
+    default <T> T project(String streamId, Supplier<T> instance, BiConsumer<T, EventRecord> handler) {
+        T aggregate = instance.get();
+        this.get(streamId).forEach(event -> handler.accept(aggregate, event));
+        return aggregate;
+    }
 
     @Transactional(readOnly = true)
     default List<EventRecord> query(Specification<EventRecord> query, Sort sort, int limit) {
         return this.findAll(query, PageRequest.of(0, limit, sort))
                 .toList();
     }
-
 }

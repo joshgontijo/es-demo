@@ -1,11 +1,7 @@
 package es.demo.esdemo;
 
-import es.demo.esdemo.form.Form;
-import es.demo.esdemo.repository.EventRepository;
-import es.demo.esdemo.repository.TypedRepo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration

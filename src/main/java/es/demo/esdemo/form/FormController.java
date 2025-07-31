@@ -23,7 +23,7 @@ class FormController {
     @PostMapping("/forms")
     public ResponseEntity<CreateFormResponse> createForm(@RequestBody AddPersonRequest request) {
         var formId = UUID.randomUUID().toString().substring(0, 8);
-        var event = new FormEvent.FormCreated(formId, request.name, request.email);
+//        var event = new FormEvent.FormCreated(formId, request.name, request.email);
 
 //        var result = store.append(formId, new Event("FORM_CREATED", ), 0);
 //        log.info("Form created: {}", result);

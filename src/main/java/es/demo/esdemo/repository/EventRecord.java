@@ -22,17 +22,17 @@ public class EventRecord {
     private OffsetDateTime timestamp;
 
     @Column(name = "event_type")
-    private String eventType;
+    private String type;
     private byte[] data;
     private byte[] metadata;
 
 
-    public EventRecord(long sequence, String streamId, long version, OffsetDateTime timestamp, String eventType, byte[] data) {
+    public EventRecord(long sequence, String streamId, long version, OffsetDateTime timestamp, String type, byte[] data) {
         this.sequence = sequence;
         this.streamId = streamId;
         this.version = version;
         this.timestamp = timestamp;
-        this.eventType = eventType;
+        this.type = type;
         this.data = data;
     }
 
@@ -50,7 +50,7 @@ public class EventRecord {
         return this;
     }
 
-    public EventRecord version(long version) {
+    EventRecord version(long version) {
         this.version = version;
         return this;
     }
@@ -70,8 +70,8 @@ public class EventRecord {
         return this;
     }
 
-    public EventRecord eventType(String eventType) {
-        this.eventType = eventType;
+    public EventRecord type(String eventType) {
+        this.type = eventType;
         return this;
     }
 
@@ -91,8 +91,8 @@ public class EventRecord {
         return timestamp;
     }
 
-    public String eventType() {
-        return eventType;
+    public String type() {
+        return type;
     }
 
     public byte[] data() {
@@ -112,13 +112,13 @@ public class EventRecord {
                 version == that.version &&
                 Objects.equals(streamId, that.streamId) &&
                 Objects.equals(timestamp, that.timestamp) &&
-                Objects.equals(eventType, that.eventType) &&
+                Objects.equals(type, that.type) &&
                 Arrays.equals(data, that.data);
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(sequence, streamId, version, timestamp, eventType);
+        int result = Objects.hash(sequence, streamId, version, timestamp, type);
         result = 31 * result + Arrays.hashCode(data);
         return result;
     }
@@ -130,7 +130,7 @@ public class EventRecord {
                 ", stream='" + streamId + '\'' +
                 ", version=" + version +
                 ", timestamp=" + timestamp +
-                ", type='" + eventType + '\'' +
+                ", type='" + type + '\'' +
                 '}';
     }
 

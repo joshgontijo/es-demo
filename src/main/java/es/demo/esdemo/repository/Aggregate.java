@@ -2,9 +2,12 @@ package es.demo.esdemo.repository;
 
 public abstract class Aggregate {
 
-    protected int version;
+    long version;
 
-    public int version() {
+    public long version() {
         return version;
+    }
+
+    public Aggregate() {
     }
 }
