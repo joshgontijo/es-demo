@@ -24,9 +24,9 @@ import static org.springframework.data.jpa.domain.Specification.where;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 class EventRepositoryTest {
 
-    public static final String TEST_STREAM = UUID.randomUUID().toString().substring(0, 5);
-    public static final String TEST_TYPE = "test-type";
-    public static final byte[] DUMMY_DATA = "test-data".getBytes(StandardCharsets.UTF_8);
+    private static final String TEST_STREAM = UUID.randomUUID().toString().substring(0, 5);
+    private static final String TEST_TYPE = "test-type";
+    private static final byte[] DUMMY_DATA = "test-data".getBytes(StandardCharsets.UTF_8);
 
     @Autowired
     private EventRepository db;
@@ -42,14 +42,14 @@ class EventRepositoryTest {
 
     @Test
     void append() {
-        long version = db.append(event(TEST_STREAM), new Version.Expect(0));
-        assertEquals(1, version);
+        var result = db.append(event(TEST_STREAM), new Version.Expect(0));
+        assertEquals(1, result.version());
     }
 
     @Test
     void appendDuplicate() {
-        var version = db.append(event(TEST_STREAM), new Version.Expect(0));
-        assertEquals(1, version);
+        var result = db.append(event(TEST_STREAM), new Version.Expect(0));
+        assertEquals(1, result.version());
 
         assertThrows(VersionMismatch.class, () -> db.append(event(TEST_STREAM), new Version.Expect(0)));
     }

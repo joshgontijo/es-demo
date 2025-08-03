@@ -24,7 +24,7 @@ public class AggregateRepository<T extends Aggregate> {
         this.aggregateType = aggregateType;
     }
 
-    public long append(String stream, Object data, Version expectedVersion) {
+    public WriteResult append(String stream, Object data, Version expectedVersion) {
         var event = new EventRecord()
                 .streamId(stream)
                 .type(toSnakeCase(data.getClass().getSimpleName()))

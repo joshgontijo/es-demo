@@ -1,4 +1,4 @@
-package es.demo.esdemo.repo2;
+package es.demo.esdemo.repository;
 
 import java.time.LocalDateTime;
 import java.util.UUID;

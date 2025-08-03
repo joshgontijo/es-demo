@@ -1,0 +1,96 @@
+services:
+  mysql:
+    image: mysql:8.4.5
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - /tmp/mysql-data:/var/lib/mysql
+      - ./compose/mysql/my.cnf:/etc/mysql/my.cnf:ro
+    environment:
+      MYSQL_DATABASE: es_demo
+      MYSQL_ROOT_PASSWORD: root
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  debezium:
+    image: debezium/connect:2.4
+    container_name: debezium
+    ports:
+      - "8083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: debezium_connect_config
+      OFFSET_STORAGE_TOPIC: debezium_connect_offset
+      STATUS_STORAGE_TOPIC: debezium_connect_status
+    depends_on:
+      - kafka
+      - mysql
+
+
+
+  debezium-ui:
+    image: debezium/debezium-ui:latest
+    restart: always
+    container_name: debezium-ui
+    hostname: debezium-ui
+    depends_on:
+      - debezium
+    ports:
+      - '8085:8080'
+    environment:
+      KAFKA_CONNECT_URIS: http://debezium:8083
+
+  debezium-init:
+    image: curlimages/curl:8.8.0
+    container_name: debezium-init
+    depends_on:
+      - debezium
+    entrypoint: ["/bin/sh", "/debezium-init.sh"]
+    volumes:
+      - ./debezium-init.sh:/debezium-init.sh
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8989:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      - kafka
+
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8086:8080"

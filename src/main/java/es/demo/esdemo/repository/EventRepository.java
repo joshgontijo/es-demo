@@ -27,7 +27,7 @@ public interface EventRepository extends JpaRepository<EventRecord, Long>, JpaSp
 
     long INITIAL_VERSION = 0;
 
-    default long append(EventRecord event, Version expectedVersion) {
+    default WriteResult append(EventRecord event, Version expectedVersion) {
         var streamId = requireNonNull(event.streamId());
 
         while (true) {
@@ -44,7 +44,7 @@ public interface EventRepository extends JpaRepository<EventRecord, Long>, JpaSp
                 event.version(expected + 1);
                 var created = this.save(event);
                 System.out.println("Saved event: " + created);
-                return event.version();
+                return new WriteResult(created.sequence(), event.version());
             } catch (DataIntegrityViolationException e) {
                 // This exception is thrown when the expected version does not match the DB version
                 if (expectedVersion instanceof Version.Expect(long version)) {

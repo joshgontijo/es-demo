@@ -73,4 +73,15 @@ class ReflectionMagic {
         }
     }
 
+    static <T extends Message> T readProto(byte[] data, Class<T> type) {
+        try {
+            var method = type.getMethod("parseFrom", byte[].class);
+            @SuppressWarnings("unchecked")
+            T message = (T) method.invoke(null, data);
+            return message;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to parse protobuf message from bytes", e);
+        }
+    }
+
 }

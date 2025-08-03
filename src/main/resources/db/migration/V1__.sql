@@ -4,7 +4,7 @@ create table events
     sequence   BIGINT AUTO_INCREMENT              PRIMARY KEY,
     stream_id  VARCHAR(500)                       NOT NULL,
     version    INT                                NOT NULL,
-    event_type VARCHAR(500)                       NOT NULL,
+    type       VARCHAR(500)                       NOT NULL,
     timestamp  DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
     data       BLOB                               NOT NULL,
     metadata   BLOB                               NULL
@@ -24,7 +24,7 @@ CREATE INDEX events_version_index
     ON events (version);
 
 CREATE INDEX events_event_type_index
-    ON events (event_type);
+    ON events (type);
 
 CREATE INDEX events_timestamp_index
     ON events (timestamp);

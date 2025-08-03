@@ -1,5 +1,9 @@
 package es.demo.esdemo.repository;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
@@ -8,6 +12,8 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "events")
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class EventRecord {
 
     @Id
@@ -21,7 +27,7 @@ public class EventRecord {
     @Column(insertable = false, updatable = false)
     private OffsetDateTime timestamp;
 
-    @Column(name = "event_type")
+    @JsonDeserialize
     private String type;
     private byte[] data;
     private byte[] metadata;
@@ -126,11 +132,11 @@ public class EventRecord {
     @Override
     public String toString() {
         return "EventRecord{" +
-                ", sequence=" + sequence +
+                "sequence=" + sequence +
                 ", stream='" + streamId + '\'' +
                 ", version=" + version +
-                ", timestamp=" + timestamp +
                 ", type='" + type + '\'' +
+                ", timestamp=" + timestamp +
                 '}';
     }
 
